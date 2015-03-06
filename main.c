@@ -117,11 +117,17 @@ int main(void)
 	uint32_t i, reset_count=0;
 	for(;;)
 	{
-		//while(P1IN & BIT5);
+		
+
 
 		P1OUT ^= 0x01; // blinky
-		//randomize(led_table, 48*5);
-		random_shift(led_table, 48*5);
+
+		if(P1IN & BIT5)
+			off(led_table, 48*5);
+		else
+			randomize(led_table, 48*5);
+
+		//random_shift(led_table, 48*5);
 		//get_data_test(led_table);
 		put_data_24(led_table, 48*5);
 
