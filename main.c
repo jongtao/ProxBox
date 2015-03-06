@@ -36,7 +36,6 @@ void SetVcoreUp (unsigned int level)
 
 void enable_XT2(void)
 {
-	
 	SetVcoreUp (0x01);
   SetVcoreUp (0x02);  
   SetVcoreUp (0x03);  
@@ -72,18 +71,34 @@ int main(void)
 	UCSCTL3 = SELREF_5;
 	//UCSCTL4 |= SELS_5 + SELM_5; // SMCLK = MCLK = XT2
 
-
+/*
+	UCA0CTL1 = UCSWRST; // DISABLE SPI
 	// Config SPI Pins
 	P2SEL |= BIT7; // CLK on P2.7
 	P3SEL |= BIT3; // MOSI on P3.3
 
 	// Config SPI Registers
-	UCA0CTL1 = UCSWRST; // DISABLE SPI
 	UCA0CTL0 |= UCCKPH | UCMSB | UCMST | UCSYNC;
 	UCA0CTL1 |= UCSSEL_2; // SMCLK
 	UCA0BR0 = 0;
 	UCA0BR1 = 0;
 	UCA0CTL1 &= ~UCSWRST; // ENABLE SPI
+*/
+
+	UCA0CTL1 = UCSWRST; // DISABLE SPI
+
+	// Config SPI Pins
+	P3SEL |= BIT2; // CLK on P3.2
+	P3SEL |= BIT0; // MOSI on P3.0
+
+	// Config SPI Registers
+	UCB0CTL0 |= UCCKPH | UCMSB | UCMST | UCSYNC;
+	UCB0CTL1 |= UCSSEL_2; // SMCLK
+	UCB0BR0 = 0;
+	UCB0BR1 = 0;
+	UCB0CTL1 &= ~UCSWRST; // ENABLE SPI
+
+
 
 	// Config Input Pins
 

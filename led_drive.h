@@ -13,7 +13,7 @@
 // USE GCC
 #define SPI_DELAY __asm__("nop\nnop\nnop\nnop")
 //#define SPI_DELAY while(UCA0STAT & UCBUSY);
-#define SPI_TX UCA0TXBUF
+#define SPI_TX UCB0TXBUF
 
 #define NUM_LED 48*5
 #define TABLE_SIZE NUM_LED*4
