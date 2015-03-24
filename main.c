@@ -91,18 +91,35 @@ int main(void)
 	UCA0CTL1 &= ~UCSWRST; // ENABLE SPI
 */
 
-	UCA0CTL1 = UCSWRST; // DISABLE SPI
 
-	// Config SPI Pins
+	// Config SPI Registers
+	/*
+	UCB0CTL1 |= UCSWRST; // DISABLE SPI
+
 	P3SEL |= BIT2; // CLK on P3.2
 	P3SEL |= BIT0; // MOSI on P3.0
 
-	// Config SPI Registers
 	UCB0CTL0 |= UCCKPH | UCMSB | UCMST | UCSYNC;
 	UCB0CTL1 |= UCSSEL_2; // SMCLK
 	UCB0BR0 = 0;
 	UCB0BR1 = 0;
+
 	UCB0CTL1 &= ~UCSWRST; // ENABLE SPI
+*/
+
+	// Config I2C Registers
+	UCB1CTL1 |= UCSWRST; // DISABLE I2C
+
+	P4SEL |= BIT2; // SCL on P4.2
+	P4SEL |= BIT1; // SDA on P4.1
+
+	UCB1CTL0 |= UCMST | UCMODE_3 | UCSYNC; // Master I2C
+	UCB1CTL1 |= UCSSEL_2; // SMCLK
+	UCB1BR0 = 30; // 12Mhz / 30 = 400Khz
+	UCB1BR1 = 0;
+	UCB1I2CSA = 0x20; // Slave's address
+
+	UCB1CTL1 &= ~UCSWRST; // ENABLE I2C
 
 
 
@@ -121,23 +138,61 @@ int main(void)
 	uint8_t led_table[TABLE_SIZE]; // [ 0x0E + Brightness | B | G | R ]
 	off(led_table, 48*5);
 	uint32_t i, reset_count=0;
+
+	uint8_t PORT_1, PORT_0;
+	PORT_1 = PORT_0 = 0;
+
 	for(;;)
 	{
-		
-
-
-		P1OUT ^= 0x01; // blinky
+		//P1OUT ^= 0x01; // blinky
 
 /*
 		if(P1IN & BIT5)
 			off(led_table, 48*5);
 		else
-			*/
 			randomize(led_table, 48*5);
-
-		//random_shift(led_table, 48*5);
+*/
+/*
+		random_shift(led_table, 48*5);
 		//get_data_test(led_table);
 		put_data_24(led_table, 48*5);
+		*/
+
+		// Set all to input
+		while(UCB1CTL1 & UCTXSTP);
+		UCB1CTL1 |= UCTR | UCTXSTT; // Transmit and Start
+		while(!(UCB1IFG & UCTXIFG)); // wait for byte to send
+		UCB1TXBUF = 0x06; // Configuration
+		while(!(UCB1IFG & UCTXIFG));
+		UCB1TXBUF = 0xFF; // PORT 0 CONFIG
+		while(!(UCB1IFG & UCTXIFG));
+		UCB1TXBUF = 0xFF; // PORT 1 CONFIG
+		while(!(UCB1IFG & UCTXIFG));
+		UCB1CTL1 |= UCTXSTP; // Stop
+
+		// Request Inputs
+		while(UCB1CTL1 & UCTXSTP);
+		UCB1CTL1 |= UCTR | UCTXSTT; // Transmit and Start
+		while(!(UCB1IFG & UCTXIFG));
+		UCB1TXBUF = 0x00; // Inputs
+		while(!(UCB1IFG & UCTXIFG));
+		UCB1CTL1 |= UCTXSTP; // Stop
+
+		// Read Inputs
+		while(UCB1CTL1 & UCTXSTP);
+		UCB1CTL1 &= ~UCTR;
+		UCB1CTL1 |= UCTXSTT; // Transmit and Start
+		while(!(UCB1IFG & UCRXIFG));
+		PORT_0 = UCB1RXBUF; // PORT 0 INPUT
+		while(!(UCB1IFG & UCRXIFG));
+		PORT_1 = UCB1RXBUF; // PORT 1 INPUT 
+		UCB1CTL1 |= UCTXSTP; // Stop
+
+		if(PORT_0 & 1)
+			P1OUT = 0x01;
+		else
+			P1OUT &= ~0;
+
 
 
 		for(i=0;i<0xFFFF;i++) // shitty delay
