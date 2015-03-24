@@ -34,17 +34,30 @@ void SetVcoreUp (unsigned int level)
 
 
 
-void enable_XT2(void)
+void config_clock(void)
 {
+	/*
 	SetVcoreUp (0x01);
   SetVcoreUp (0x02);  
   SetVcoreUp (0x03);  
+	*/
+
+  P2DIR |= BIT2;	// SMCLK set out to pins
+  P2SEL |= BIT2;
+
+ 	UCSCTL3 = SELREF_2;	// Set DCO FLL reference = REFO
+  UCSCTL4 |= SELA_2;	// Set ACLK = REFO
 
 	P5SEL |= BIT2 + BIT3; // Port select XT2
-
 	UCSCTL6 &= ~XT2OFF; // Enable XT2
-	UCSCTL3 |= SELREF_2;
-	UCSCTL4 |= SELA_2; // ACLK = REFO, SMCLK = DCO, MCLK = DCO
+
+  __bis_SR_register(SCG0);	// Disable the FLL control loop
+  UCSCTL0 = 0x0000;	// DCO=0, MOD=0
+  UCSCTL1 = DCORSEL_6;	// Target DCO is 12Mhz = (2+1)*4MHz
+  UCSCTL2 = FLLD_1 + 2;	// DCO Mult N for 25MHz; Set FLLDiv D = fDCOCLK/1
+
+	UCSCTL3 = SELREF_5;	// use XT2 reference
+  __bic_SR_register(SCG0);	// Enable the FLL control loop
 
 	do
 	{
@@ -62,14 +75,7 @@ int main(void)
 	WDTCTL = WDTPW | WDTHOLD;	// Stop watchdog ti
 
 	// Config Clock
-	enable_XT2();
-	__bis_SR_register(SCG0);
-	UCSCTL1 = DCORSEL_4;
-	__bis_SR_register(SCG0);
- 
-	UCSCTL2 = FLLD_0 + 1; // 8 Mhz Target
-	UCSCTL3 = SELREF_5;
-	//UCSCTL4 |= SELS_5 + SELM_5; // SMCLK = MCLK = XT2
+	config_clock();
 
 /*
 	UCA0CTL1 = UCSWRST; // DISABLE SPI
@@ -122,9 +128,11 @@ int main(void)
 
 		P1OUT ^= 0x01; // blinky
 
+/*
 		if(P1IN & BIT5)
 			off(led_table, 48*5);
 		else
+			*/
 			randomize(led_table, 48*5);
 
 		//random_shift(led_table, 48*5);
