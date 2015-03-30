@@ -115,7 +115,7 @@ int main(void)
 
 	UCB1CTL0 |= UCMST | UCMODE_3 | UCSYNC; // Master I2C
 	UCB1CTL1 |= UCSSEL_2; // SMCLK
-	UCB1BR0 = 30; // 12Mhz / 30 = 400Khz
+	UCB1BR0 = 15; // 12Mhz / 30 = 400Khz
 	UCB1BR1 = 0;
 	UCB1I2CSA = 0x20; // Slave's address
 
@@ -139,9 +139,30 @@ int main(void)
 	off(led_table, 48*5);
 	uint32_t i, reset_count=0;
 
-	uint8_t PORT_1, PORT_0;
-	PORT_1 = PORT_0 = 0;
+	uint8_t IO_A, IO_B, IO_C, IO_D;
+	IO_A = IO_B = IO_C = IO_D = 0;
 
+		while(UCB1CTL1 & UCTXSTP);
+		UCB1CTL1 |= UCTR | UCTXSTT; // Transmit and Start
+		while(!(UCB1IFG & UCTXIFG)); // wait for byte to send
+		UCB1TXBUF = 0x06; // Configuration
+		while(!(UCB1IFG & UCTXIFG));
+		UCB1TXBUF = 0xFF; // PORT 0 CONFIG
+		while(!(UCB1IFG & UCTXIFG));
+		UCB1TXBUF = 0xFF; // PORT 1 CONFIG
+		while(!(UCB1IFG & UCTXIFG));
+		UCB1CTL1 |= UCTXSTP; // Stop
+
+	// Request Inputs
+		while(UCB1CTL1 & UCTXSTP);
+		UCB1CTL1 |= UCTR | UCTXSTT; // Transmit and Start
+		while(!(UCB1IFG & UCTXIFG));
+		UCB1TXBUF = 0x00; // Inputs
+		while(!(UCB1IFG & UCTXIFG));
+		//UCB1CTL1 |= UCTXSTP; // Stop
+
+
+		
 	for(;;)
 	{
 		//P1OUT ^= 0x01; // blinky
@@ -159,39 +180,32 @@ int main(void)
 		*/
 
 		// Set all to input
-		while(UCB1CTL1 & UCTXSTP);
-		UCB1CTL1 |= UCTR | UCTXSTT; // Transmit and Start
-		while(!(UCB1IFG & UCTXIFG)); // wait for byte to send
-		UCB1TXBUF = 0x06; // Configuration
-		while(!(UCB1IFG & UCTXIFG));
-		UCB1TXBUF = 0xFF; // PORT 0 CONFIG
-		while(!(UCB1IFG & UCTXIFG));
-		UCB1TXBUF = 0xFF; // PORT 1 CONFIG
-		while(!(UCB1IFG & UCTXIFG));
-		UCB1CTL1 |= UCTXSTP; // Stop
-
-		// Request Inputs
-		while(UCB1CTL1 & UCTXSTP);
-		UCB1CTL1 |= UCTR | UCTXSTT; // Transmit and Start
-		while(!(UCB1IFG & UCTXIFG));
-		UCB1TXBUF = 0x00; // Inputs
-		while(!(UCB1IFG & UCTXIFG));
-		UCB1CTL1 |= UCTXSTP; // Stop
-
+		
+	
 		// Read Inputs
-		while(UCB1CTL1 & UCTXSTP);
+		
+		//while(UCB1CTL1 & UCTXSTP);
 		UCB1CTL1 &= ~UCTR;
 		UCB1CTL1 |= UCTXSTT; // Transmit and Start
-		while(!(UCB1IFG & UCRXIFG));
-		PORT_0 = UCB1RXBUF; // PORT 0 INPUT
-		while(!(UCB1IFG & UCRXIFG));
-		PORT_1 = UCB1RXBUF; // PORT 1 INPUT 
-		UCB1CTL1 |= UCTXSTP; // Stop
+		while(UCB1CTL1 & UCTXSTT);
 
-		if(PORT_0 & 1)
-			P1OUT = 0x01;
+		while(!(UCB1IFG & UCRXIFG));
+		IO_A = UCB1RXBUF; // PORT 0 INPUT
+		while(!(UCB1IFG & UCRXIFG));
+		IO_B = UCB1RXBUF; // PORT 1 INPUT
+		while(!(UCB1IFG & UCRXIFG));
+		IO_C = UCB1RXBUF; // PORT 0 INPUT
+
+
+		UCB1CTL1 |= UCTXSTP; // Stop
+		while(UCB1CTL1 & UCTXSTP);
+		while(!(UCB1IFG & UCRXIFG));
+		IO_D = UCB1RXBUF; // PORT 1 INPUT
+
+		if(IO_B&0x01)
+			P1OUT |= 0x01;
 		else
-			P1OUT &= ~0;
+			P1OUT ^= 0x01;
 
 
 
