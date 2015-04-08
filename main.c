@@ -41,10 +41,10 @@ void config_clock(void)
   SetVcoreUp (0x02);  
   SetVcoreUp (0x03);  
 	*/
-
+/*
   P2DIR |= BIT2;	// SMCLK set out to pins
   P2SEL |= BIT2;
-
+*/
  	UCSCTL3 = SELREF_2;	// Set DCO FLL reference = REFO
   UCSCTL4 |= SELA_2;	// Set ACLK = REFO
 
@@ -70,14 +70,23 @@ void config_clock(void)
 
 
 
-int main(void)
+void config_spi()
 {
-	WDTCTL = WDTPW | WDTHOLD;	// Stop watchdog ti
+	// Config SPI Registers
+	UCB0CTL1 |= UCSWRST; // DISABLE SPI
 
-	// Config Clock
-	config_clock();
+	P3SEL |= BIT2; // CLK on P3.2
+	P3SEL |= BIT0; // MOSI on P3.0
 
-/*
+	UCB0CTL0 |= UCCKPH | UCMSB | UCMST | UCSYNC;
+	UCB0CTL1 |= UCSSEL_2; // SMCLK
+	UCB0BR0 = 0;
+	UCB0BR1 = 0;
+
+	UCB0CTL1 &= ~UCSWRST; // ENABLE SPI
+
+
+/* Configures SPI for a different module
 	UCA0CTL1 = UCSWRST; // DISABLE SPI
 	// Config SPI Pins
 	P2SEL |= BIT7; // CLK on P2.7
@@ -91,22 +100,12 @@ int main(void)
 	UCA0CTL1 &= ~UCSWRST; // ENABLE SPI
 */
 
+} // config_led()
 
-	// Config SPI Registers
-	/*
-	UCB0CTL1 |= UCSWRST; // DISABLE SPI
 
-	P3SEL |= BIT2; // CLK on P3.2
-	P3SEL |= BIT0; // MOSI on P3.0
 
-	UCB0CTL0 |= UCCKPH | UCMSB | UCMST | UCSYNC;
-	UCB0CTL1 |= UCSSEL_2; // SMCLK
-	UCB0BR0 = 0;
-	UCB0BR1 = 0;
-
-	UCB0CTL1 &= ~UCSWRST; // ENABLE SPI
-*/
-
+void config_i2c()
+{
 	// Config I2C Registers
 	UCB1CTL1 |= UCSWRST; // DISABLE I2C
 
@@ -117,12 +116,14 @@ int main(void)
 	UCB1CTL1 |= UCSSEL_2; // SMCLK
 	UCB1BR0 = 15; // 12Mhz / 30 = 400Khz
 	UCB1BR1 = 0;
-	UCB1I2CSA = 0x20; // Slave's address
 
 	UCB1CTL1 &= ~UCSWRST; // ENABLE I2C
+} // config_i2c()
 
 
 
+void config_gpio()
+{
 	// Config Input Pins
 
 	// Config Control Pins
@@ -130,6 +131,22 @@ int main(void)
 	// Config Blinky
 	P1OUT = 0;
 	P1DIR |= 0x01;
+} // config_gpio()
+
+
+
+
+
+
+
+int main(void)
+{
+	WDTCTL = WDTPW | WDTHOLD;	// Stop watchdog ti
+
+	config_clock();
+	config_spi();
+	config_i2c();
+	config_gpio();
 
 
 
@@ -142,46 +159,27 @@ int main(void)
 	uint8_t IO_A, IO_B, IO_C, IO_D;
 	IO_A = IO_B = IO_C = IO_D = 0;
 
-		while(UCB1CTL1 & UCTXSTP);
-		UCB1CTL1 |= UCTR | UCTXSTT; // Transmit and Start
-		while(!(UCB1IFG & UCTXIFG)); // wait for byte to send
-		UCB1TXBUF = 0x06; // Configuration
-		while(!(UCB1IFG & UCTXIFG));
-		UCB1TXBUF = 0xFF; // PORT 0 CONFIG
-		while(!(UCB1IFG & UCTXIFG));
-		UCB1TXBUF = 0xFF; // PORT 1 CONFIG
-		while(!(UCB1IFG & UCTXIFG));
-		UCB1CTL1 |= UCTXSTP; // Stop
-
-	// Request Inputs
-		while(UCB1CTL1 & UCTXSTP);
-		UCB1CTL1 |= UCTR | UCTXSTT; // Transmit and Start
-		while(!(UCB1IFG & UCTXIFG));
-		UCB1TXBUF = 0x00; // Inputs
-		while(!(UCB1IFG & UCTXIFG));
-		//UCB1CTL1 |= UCTXSTP; // Stop
-
-
 		
 	for(;;)
 	{
-		//P1OUT ^= 0x01; // blinky
+		P1OUT ^= 0x01; // blinky
 
-/*
+
 		if(P1IN & BIT5)
 			off(led_table, 48*5);
 		else
 			randomize(led_table, 48*5);
-*/
+
+
 /*
 		random_shift(led_table, 48*5);
 		//get_data_test(led_table);
+		
+*/
 		put_data_24(led_table, 48*5);
-		*/
-
 		// Set all to input
 		
-	
+/*	
 		// Read Inputs
 		
 		//while(UCB1CTL1 & UCTXSTP);
@@ -206,7 +204,7 @@ int main(void)
 			P1OUT |= 0x01;
 		else
 			P1OUT ^= 0x01;
-
+*/
 
 
 		for(i=0;i<0xFFFF;i++) // shitty delay
