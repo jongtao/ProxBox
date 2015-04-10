@@ -124,11 +124,26 @@ void config_i2c()
 
 void config_gpio()
 {
-	// Config Input Pins
+	/* IR Control Pin Mappings
+		D1: P2.0
+		D2: P2.2
+		D3: P7.4
+		D4: P3.1
+		STROBE: P6.5
+	*/
+	P2OUT &= ~(BIT0 | BIT2);
+	P2DIR |= BIT0 | BIT2;
 
-	// Config Control Pins
+	P7OUT &= ~BIT4;
+	P7DIR |= BIT4;
 
-	// Config Blinky
+	P3OUT &= ~BIT1;
+	P3DIR |= BIT1;
+
+	P6OUT &= ~BIT5;
+	P6DIR |= BIT5;
+
+	// Blinky
 	P1OUT = 0;
 	P1DIR |= 0x01;
 } // config_gpio()
@@ -149,37 +164,56 @@ int main(void)
 	config_gpio();
 
 
-
-	srand(32);
-
+	// LED Table
 	uint8_t led_table[TABLE_SIZE]; // [ 0x0E + Brightness | B | G | R ]
 	off(led_table, 48*5);
 	uint32_t i, reset_count=0;
+	srand(32);
 
+	// TESTING
 	uint8_t IO_A, IO_B, IO_C, IO_D;
 	IO_A = IO_B = IO_C = IO_D = 0;
+
+	// SENSE Table
+	uint16_t sense_table[NUM_SENSE];
+
+
+
+	UCB1I2CSA = SLAVE_ADDR_MASK; // Slave's address
+	while(UCB1CTL1 & UCTXSTP);
+	UCB1CTL1 |= UCTR | UCTXSTT; // Transmit and Start
+	while(!(UCB1IFG & UCTXIFG)); // wait for byte to send
+	UCB1TXBUF = 0x06; // Configuration
+	while(!(UCB1IFG & UCTXIFG));
+	UCB1TXBUF = 0xFF; // PORT 0 CONFIG
+	while(!(UCB1IFG & UCTXIFG));
+	UCB1TXBUF = 0xFF; // PORT 1 CONFIG
+	while(!(UCB1IFG & UCTXIFG));
+	UCB1CTL1 |= UCTXSTP; // Stop
 
 		
 	for(;;)
 	{
 		P1OUT ^= 0x01; // blinky
 
+/*
+		gather_test(sense_table);
+		process_test(led_table, sense_table);
+		put_data_24(led_table, 48*5);
+		*/
 
+/*
 		if(P1IN & BIT5)
 			off(led_table, 48*5);
 		else
 			randomize(led_table, 48*5);
 
 
-/*
-		random_shift(led_table, 48*5);
+		//random_shift(led_table, 48*5);
 		//get_data_test(led_table);
-		
-*/
 		put_data_24(led_table, 48*5);
-		// Set all to input
-		
-/*	
+*/	
+	
 		// Read Inputs
 		
 		//while(UCB1CTL1 & UCTXSTP);
@@ -204,13 +238,14 @@ int main(void)
 			P1OUT |= 0x01;
 		else
 			P1OUT ^= 0x01;
-*/
+
 
 
 		for(i=0;i<0xFFFF;i++) // shitty delay
 			__asm__("nop\nnop\nnop\nnop\nnop\nnop\nnop");
 
 
+/*
 		if(reset_count == 0xFF)
 		{
 			off(led_table, 48*5);
@@ -218,6 +253,7 @@ int main(void)
 		}
 
 		reset_count++;
+*/
 	}
 
 	return 0;
