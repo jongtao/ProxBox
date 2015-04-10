@@ -72,7 +72,7 @@ void ex_begin_inputs(uint8_t slave_addr)
 	while(!(UCB1IFG & UCTXIFG));
 	UCB1TXBUF = 0x00; // Inputs
 	while(!(UCB1IFG & UCTXIFG));
-	//UCB1CTL1 |= UCTXSTP; // Stop
+	UCB1CTL1 |= UCTXSTP; // Stop
 } // request_ex_inputs()
 
 
@@ -161,9 +161,9 @@ void poll_binary(uint8_t dual_row, uint8_t slave_addr, uint16_t* sense_table)
 			sense_table[index] = 0;
 
 		if(IO_B & i)
-			sense_table[index*2] = 1;
+			sense_table[8+index] = 1;
 		else
-			sense_table[index*2] = 0;
+			sense_table[8+index] = 0;
 
 		index++;
 	} // for every bit in port
@@ -200,17 +200,16 @@ void gather_test(uint16_t sense_table[])
 
 void process_test(uint8_t led_table[], uint16_t sense_table[])
 {
-	srand(32);
 	uint16_t i, index;
 	uint8_t r,g,b;
-	r = rand();
-	g = rand();
-	b = rand();
+	r = 0;
+	g = 0xFF;
+	b = 0xFF;
+
 	for(i=0;i<16;i++)
 	{
-		index = i<<2;
-
-		if(sense_table[index])
+		index = i*4;
+		if(sense_table[i])
 		{
 			led_table[index] = 0xE0 | 5;
 			led_table[index+1] = b;

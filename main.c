@@ -178,44 +178,41 @@ int main(void)
 	uint16_t sense_table[NUM_SENSE];
 
 
+/*
+		UCB1I2CSA = SLAVE_ADDR_MASK; // Slave's address
 
-	UCB1I2CSA = SLAVE_ADDR_MASK; // Slave's address
 	while(UCB1CTL1 & UCTXSTP);
 	UCB1CTL1 |= UCTR | UCTXSTT; // Transmit and Start
-	while(!(UCB1IFG & UCTXIFG)); // wait for byte to send
-	UCB1TXBUF = 0x06; // Configuration
 	while(!(UCB1IFG & UCTXIFG));
-	UCB1TXBUF = 0xFF; // PORT 0 CONFIG
-	while(!(UCB1IFG & UCTXIFG));
-	UCB1TXBUF = 0xFF; // PORT 1 CONFIG
+	UCB1TXBUF = 0x00; // Inputs
 	while(!(UCB1IFG & UCTXIFG));
 	UCB1CTL1 |= UCTXSTP; // Stop
-
+*/
 		
 	for(;;)
 	{
 		P1OUT ^= 0x01; // blinky
 
-/*
+
 		gather_test(sense_table);
+		off(led_table, 48*5);
 		process_test(led_table, sense_table);
 		put_data_24(led_table, 48*5);
-		*/
 
 /*
 		if(P1IN & BIT5)
 			off(led_table, 48*5);
 		else
 			randomize(led_table, 48*5);
-
+*/
 
 		//random_shift(led_table, 48*5);
 		//get_data_test(led_table);
-		put_data_24(led_table, 48*5);
-*/	
+		//put_data_24(led_table, 48*5);
+	
 	
 		// Read Inputs
-		
+	/*	
 		//while(UCB1CTL1 & UCTXSTP);
 		UCB1CTL1 &= ~UCTR;
 		UCB1CTL1 |= UCTXSTT; // Transmit and Start
@@ -239,7 +236,7 @@ int main(void)
 		else
 			P1OUT ^= 0x01;
 
-
+*/
 
 		for(i=0;i<0xFFFF;i++) // shitty delay
 			__asm__("nop\nnop\nnop\nnop\nnop\nnop\nnop");

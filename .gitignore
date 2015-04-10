@@ -30,3 +30,8 @@
 
 # Vim
 *.vim
+*.swp
+
+# Code composer
+Debug/
+
