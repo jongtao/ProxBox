@@ -10,39 +10,6 @@ static uint8_t sense_table[NUM_SENSE];
 
 
 
-/* IR Control Pin Mappings
-	D1: P2.0
-	D2: P2.2
-	D3: P7.4
-	D4: P3.1
-	STROBE: P6.5
-*/
-
-
-inline void ir_set_line(uint8_t line_num)
-{
-	if(line_num & 0x01) // D1
-		P2OUT |= BIT0;
-	else
-		P2OUT &= ~BIT0;
-
-	
-	if(line_num & 0x02) // D2
-		P2OUT |= BIT2;
-	else
-		P2OUT &= ~BIT2;
-	
-	if(line_num & 0x04) // D3
-		P7OUT |= BIT4;
-	else
-		P7OUT &= ~BIT4;
-
-	if(line_num & 0x08) // D4
-		P3OUT |= BIT1;
-	else
-		P3OUT &= ~BIT1;
-} // ir_set_line()
-
 
 
 void ex_set_input(uint8_t slave_addr)
@@ -77,51 +44,103 @@ void ex_begin_inputs(uint8_t slave_addr)
 
 
 
-inline void is_latched(uint8_t port, uint8_t* latched)
+inline void select_ir(uint8_t row)
 {
-	/*
-	if(latched[0] == 0 && !(0x01 & port))
-	{
-		latched[0] = 1;
-	} // if latched 1
+
+/* IR Control Pin Mappings
+	D1: P2.0
+	D2: P2.2
+	D3: P7.4
+	D4: P3.1
+	INHIBIT: P6.5
 */
-} // is_latched()
+
+	if(row & 0x01)
+		P2OUT |= BIT0;
+	else // not 0x01
+		P2OUT &= ~BIT0;
+
+	if(row & 0x02)
+		P2OUT |= BIT2;
+	else // not 0x02;
+		P2OUT &= ~BIT2;
+
+	if(row & 0x04)
+		P7OUT |= BIT4;
+	else // not 0x04;
+		P7OUT &= ~BIT4;
+
+	if(row & 0x08)
+		P3OUT |= BIT1;
+	else
+		P3OUT &= ~BIT1;
+} // select_ir()
 
 
 
-void poll_A(uint8_t slave_addr, uint16_t samples, uint16_t* sense_table,
-	uint16_t table_size)
+void eval_magnitude(uint8_t port, uint16_t sense_table[], uint16_t index)
+{
+	uint8_t offset = 0;
+	uint8_t bit;
+
+	for(bit=0x0001; bit<0x0100; bit<<=1)	
+	{
+		if(!(port & bit)) // if the sensor senses something (active low)
+			sense_table[index + offset]++; // increment table
+
+		offset++;
+	} // for all bits
+} // eval_magnitude()
+
+
+
+void poll_A(uint8_t row, uint8_t slave_addr, uint16_t samples,
+	uint16_t sense_table[])
 {
 	// TODO doesn't work yet
 
 	uint16_t i;
 	uint8_t IO_A, IO_B;
-	uint8_t latched[8];
+	uint16_t index = row * 8; // sensor number: 8 sensors per row
 
-	for(i=0;i<8;i++) // use memset
-		latched[i] = 0;
+	uint16_t bit = 0;
+	uint8_t offset = 0;
 
+	// zero table
+	for(offset=0; offset<8; offset++)
+		sense_table[index + offset] = 0;
+
+	// turn on IR
+	select_ir(row);	
 	IR_ON;
 
-	// Read Inputs
+	// Begin I2C communication
+	ex_begin_inputs(slave_addr);
+
+	// Request Data
 	//while(UCB1CTL1 & UCTXSTP);
 	UCB1CTL1 &= ~UCTR;
 	UCB1CTL1 |= UCTXSTT; // Transmit and Start
 	while(UCB1CTL1 & UCTXSTT);
 
-
+	// Collect data
 	for(i=0; i<samples-1; i++)
 	{
 		while(!(UCB1IFG & UCRXIFG));
 		IO_A = UCB1RXBUF; // PORT 0 INPUT
+
+		eval_magnitude(IO_A, sense_table, index);
+
 		while(!(UCB1IFG & UCRXIFG));
 		IO_B = UCB1RXBUF; // PORT 1 INPUT
-		while(!(UCB1IFG & UCRXIFG));
-		IO_A = UCB1RXBUF; // PORT 0 INPUT
 	} // for 0 to samples - 1
 
-
 	// last sample
+	while(!(UCB1IFG & UCRXIFG)); // if the sensor senses something (active low)
+	IO_A = UCB1RXBUF; // PORT 0 INPUT
+	
+	eval_magnitude(IO_A, sense_table, index);
+
 	UCB1CTL1 |= UCTXSTP; // Stop
 	while(UCB1CTL1 & UCTXSTP);
 	while(!(UCB1IFG & UCRXIFG));
@@ -129,6 +148,115 @@ void poll_A(uint8_t slave_addr, uint16_t samples, uint16_t* sense_table,
 
 	IR_OFF;
 } // poll_A()
+
+
+
+void gather(uint16_t sense_table[])
+{
+	uint8_t chip; // iterative index
+	uint8_t row, slave_addr; // actual component
+
+	row = 0;
+	slave_addr = SLAVE_ADDR_MASK;
+
+	for(chip=0; chip<8; chip++)
+	{ 
+		poll_A(row, slave_addr, NUM_SAMPLES, sense_table);
+		row++;
+		//poll_B();
+		row++;
+
+		slave_addr++;
+	} // for 2 chips on a side
+} // gather()
+
+
+
+void process(uint8_t led_table[], uint16_t sense_table[])
+{
+	uint16_t i, index;
+	uint8_t r,g,b;
+	uint8_t brightness;
+	r = 0;
+	g = 0xFF;
+	b = 0xFF;
+
+	for(i=0;i<NUM_SENSE;i++)
+	{
+		index = i*12; // every three LEDs
+		brightness = 0xE0 | (sense_table[i] & 0x1F);
+
+		led_table[index] = brightness;
+		led_table[index+1] = b;
+		led_table[index+2] = g;
+		led_table[index+3] = r;
+
+		led_table[index+4] = brightness;
+		led_table[index+4+1] = b;
+		led_table[index+4+2] = g;
+		led_table[index+4+3] = r;
+
+		led_table[index+8] = brightness;
+		led_table[index+8+1] = b;
+		led_table[index+8+2] = g;
+		led_table[index+8+3] = r;
+	} // for 16 leds (two rows)
+} // process()
+
+
+
+void flip(uint8_t led_table[])
+{
+	uint8_t row, led, index, dest;
+	uint16_t super_i;
+	uint8_t temp[4];
+
+	for(row=1; row<16; row+=2)
+	{
+		index = row*24; // 24 leds in each row
+
+		for(led=0; led<12; led++)
+		{
+			// copy #1 to temp
+			super_i = index + led;
+			temp[0] = led_table[super_i];
+			temp[1] = led_table[super_i + 1];
+			temp[2] = led_table[super_i + 2];
+			temp[3] = led_table[super_i + 3];
+
+			// copy #2 to #1 (overwrite)
+			dest = index + (23 - led);
+			led_table[super_i    ] = led_table[index];
+			led_table[super_i + 1] = led_table[index + 1];
+			led_table[super_i + 2] = led_table[index + 2];
+			led_table[super_i + 3] = led_table[index + 3];
+
+			// copy temp(#1) to #2
+			led_table[index    ] = temp[0];
+			led_table[index + 1] = temp[1];
+			led_table[index + 2] = temp[2];
+			led_table[index + 3] = temp[3];
+		} // for every LED in row, flip
+	} // for every other row
+
+} //
+
+
+
+
+
+
+// TEST
+
+
+void inject(uint16_t sense_table[])
+{
+	uint8_t i;
+	for(i=0; i<NUM_SENSE; i++)
+		sense_table[i]++; // vary the brightness; allow overflow to wrap
+} // inject()
+
+
 
 
 
@@ -171,25 +299,6 @@ void poll_binary(uint8_t dual_row, uint8_t slave_addr, uint16_t* sense_table)
 
 
 
-void gather(uint8_t* led_table, uint16_t num_led)
-{
-	uint8_t dual_row, row, chip;
-
-/*
-	for(dual_row=0; dual_row<8; dual_row++)
-		for(chip=0; chip<2; chip++)
-		{
-			row = SLAVE_ADDR_MASK | ((dual_row<<1) + chip);
-			poll_binary(dual_row, SLAVE_ADDR_MASK | (dual_row<<1));
-			//poll_A();
-			//poll_B();
-		} // for each chip
-		*/
-
-} // gather()
-
-
-
 void gather_test(uint16_t sense_table[])
 {
 	memset(sense_table, 0, NUM_SENSE);
@@ -208,13 +317,25 @@ void process_test(uint8_t led_table[], uint16_t sense_table[])
 
 	for(i=0;i<16;i++)
 	{
-		index = i*4;
+		index = i*12;
+
 		if(sense_table[i])
 		{
 			led_table[index] = 0xE0 | 5;
 			led_table[index+1] = b;
 			led_table[index+2] = g;
 			led_table[index+3] = r;
+
+			led_table[index+4] = 0xE0 | 5;
+			led_table[index+4+1] = b;
+			led_table[index+4+2] = g;
+			led_table[index+4+3] = r;
+
+			led_table[index+8] = 0xE0 | 5;
+			led_table[index+8+1] = b;
+			led_table[index+8+2] = g;
+			led_table[index+8+3] = r;
+
 		} // on
 		else
 		{
@@ -222,6 +343,16 @@ void process_test(uint8_t led_table[], uint16_t sense_table[])
 			led_table[index+1] = 0;
 			led_table[index+2] = 0;
 			led_table[index+3] = 0;
+
+			led_table[index+4] = 0xE0;
+			led_table[index+4+1] = 0;
+			led_table[index+4+2] = 0;
+			led_table[index+4+3] = 0;
+
+			led_table[index+8] = 0xE0;
+			led_table[index+8+1] = 0;
+			led_table[index+8+2] = 0;
+			led_table[index+8+3] = 0;
 		} // off
 	} // for 16 leds (two rows)
 } // process_binary()

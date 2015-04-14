@@ -7,7 +7,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define NUM_SAMPLES 64
+#define NUM_SAMPLES 32
 #define NUM_SENSE 128
 #define IR_ON (P6OUT |= BIT5)
 #define IR_OFF (P6OUT &= ~BIT5)
@@ -16,10 +16,18 @@
 
 void ex_set_input(uint8_t slave_addr);
 void ex_begin_inputs(uint8_t slave_addr);
-void is_latched(uint8_t port, uint8_t* latched);
-// add poll_A prototype
-//void gather(uint8_t* led_table, uint16_t num_led);
+void select_ir(uint8_t row);
+void eval_magnitude(uint8_t port, uint16_t sense_table[], uint16_t index);
+void poll_A(uint8_t row, uint8_t slave_addr, uint16_t samples,
+	uint16_t sense_table[]);
 
+void gather(uint16_t sense_table[]);
+void process(uint8_t led_table[], uint16_t sense_table[]);
+void flip(uint8_t led_table[]);
+
+
+// TEST
+void inject(uint16_t sense_table[]);
 
 void poll_binary(uint8_t dual_row, uint8_t slave_addr, uint16_t* sense_table);
 void gather_test(uint16_t sense_table[]);

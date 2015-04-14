@@ -129,7 +129,7 @@ void config_gpio()
 		D2: P2.2
 		D3: P7.4
 		D4: P3.1
-		STROBE: P6.5
+		INHIBIT: P6.5
 	*/
 	P2OUT &= ~(BIT0 | BIT2);
 	P2DIR |= BIT0 | BIT2;
@@ -166,14 +166,15 @@ int main(void)
 
 	// LED Table
 	uint8_t led_table[TABLE_SIZE]; // [ 0x0E + Brightness | B | G | R ]
-	off(led_table, 48*5);
-	uint32_t i, reset_count=0;
-	srand(32);
+	off(led_table, NUM_LED);
+	//uint32_t i, reset_count=0;
+	//srand(32);
 
+/*
 	// TESTING
 	uint8_t IO_A, IO_B, IO_C, IO_D;
 	IO_A = IO_B = IO_C = IO_D = 0;
-
+*/
 	// SENSE Table
 	uint16_t sense_table[NUM_SENSE];
 
@@ -193,23 +194,14 @@ int main(void)
 	{
 		P1OUT ^= 0x01; // blinky
 
+		// gather(sense_table);
+		// inject(sense_table);
 
-		gather_test(sense_table);
-		off(led_table, 48*5);
-		process_test(led_table, sense_table);
+		off(led_table, NUM_LED);
+		process(led_table, sense_table);
+		flip(led_table);
 		put_data_24(led_table, 48*5);
 
-/*
-		if(P1IN & BIT5)
-			off(led_table, 48*5);
-		else
-			randomize(led_table, 48*5);
-*/
-
-		//random_shift(led_table, 48*5);
-		//get_data_test(led_table);
-		//put_data_24(led_table, 48*5);
-	
 	
 		// Read Inputs
 	/*	
@@ -240,18 +232,7 @@ int main(void)
 
 		for(i=0;i<0xFFFF;i++) // shitty delay
 			__asm__("nop\nnop\nnop\nnop\nnop\nnop\nnop");
-
-
-/*
-		if(reset_count == 0xFF)
-		{
-			off(led_table, 48*5);
-			reset_count = 0;
-		}
-
-		reset_count++;
-*/
-	}
+	} // main loop
 
 	return 0;
 }

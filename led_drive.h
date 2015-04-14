@@ -15,7 +15,7 @@
 //#define SPI_DELAY while(UCA0STAT & UCBUSY);
 #define SPI_TX UCB0TXBUF
 
-#define NUM_LED 48*5
+#define NUM_LED 384
 #define TABLE_SIZE NUM_LED*4
 
 
