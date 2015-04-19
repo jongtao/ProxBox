@@ -80,7 +80,7 @@ void config_spi()
 
 	UCB0CTL0 |= UCCKPH | UCMSB | UCMST | UCSYNC;
 	UCB0CTL1 |= UCSSEL_2; // SMCLK
-	UCB0BR0 = 0;
+	UCB0BR0 = 16;
 	UCB0BR1 = 0;
 
 	UCB0CTL1 &= ~UCSWRST; // ENABLE SPI
@@ -167,8 +167,8 @@ int main(void)
 	// LED Table
 	uint8_t led_table[TABLE_SIZE]; // [ 0x0E + Brightness | B | G | R ]
 	off(led_table, NUM_LED);
-	//uint32_t i, reset_count=0;
-	//srand(32);
+	uint32_t i, reset_count=0;
+	srand(32);
 
 /*
 	// TESTING
@@ -190,17 +190,29 @@ int main(void)
 	UCB1CTL1 |= UCTXSTP; // Stop
 */
 		
+//P6OUT |= BIT5; // get ready to turn off
+//IR_INPUT; // high impedance
+
 	for(;;)
 	{
 		P1OUT ^= 0x01; // blinky
 
-		// gather(sense_table);
+/*
+		gather(sense_table);
+		random_shift(led_table, 48*5);
+		//flip(led_table);
+		put_data_24(led_table, 48*5);
+		for(i=0;i<0xFFFF;i++) // shitty delay
+			__asm__("nop\nnop\nnop\nnop\nnop\nnop\nnop");
 		// inject(sense_table);
 
+*/
+
+		gather(sense_table);
 		off(led_table, NUM_LED);
 		process(led_table, sense_table);
-		flip(led_table);
-		put_data_24(led_table, 48*5);
+		//random_shift(led_table, NUM_LED);
+		put_data(led_table, NUM_LED);
 
 	
 		// Read Inputs
@@ -230,8 +242,10 @@ int main(void)
 
 */
 
+/*
 		for(i=0;i<0xFFFF;i++) // shitty delay
 			__asm__("nop\nnop\nnop\nnop\nnop\nnop\nnop");
+			*/
 	} // main loop
 
 	return 0;

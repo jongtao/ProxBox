@@ -5,7 +5,7 @@
 
 void put_data(uint8_t* led_table, uint16_t num_led)
 {
-	uint16_t half_led = num_led/16 + 1; // compute end frame length
+	uint16_t half_led = num_led/16 + 1 + 10; // compute end frame length
 	uint16_t max_index = num_led * 4; // maximum led_table row index;
 	uint16_t index; // row major order in led_table
 
@@ -81,9 +81,13 @@ void random_shift(uint8_t* led_table, uint16_t num_led)
 {
 	uint16_t i, index, indexx;
 	uint8_t r,g,b;
-	r = rand();
-	g = rand();
-	b = rand();
+	//r = rand();
+	//g = rand();
+	//b = rand();
+
+	r = 0x00;
+	g = 0xFF;
+	b = 0xFF;
 
 	for(i=num_led-1; i>0; i--)
 	{

@@ -11,8 +11,8 @@
 #include <stdint.h>
 
 // USE GCC
-#define SPI_DELAY __asm__("nop\nnop\nnop\nnop")
-//#define SPI_DELAY while(UCA0STAT & UCBUSY);
+//#define SPI_DELAY __asm__("nop\nnop\nnop\nnop")
+#define SPI_DELAY while(UCB0STAT & UCBUSY);
 #define SPI_TX UCB0TXBUF
 
 #define NUM_LED 384

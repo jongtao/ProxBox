@@ -9,8 +9,10 @@
 
 #define NUM_SAMPLES 32
 #define NUM_SENSE 128
-#define IR_ON (P6OUT |= BIT5)
-#define IR_OFF (P6OUT &= ~BIT5)
+#define IR_ON (P6OUT &= ~BIT5)
+#define IR_OFF (P6OUT |= BIT5)
+#define IR_INPUT (P6DIR &= ~BIT5)
+#define IR_OUTPUT (P6DIR |= BIT5)
 
 #define SLAVE_ADDR_MASK 0x20 // OR the last three bits with chip number
 

@@ -55,6 +55,8 @@ inline void select_ir(uint8_t row)
 	INHIBIT: P6.5
 */
 
+//IR_OUTPUT;
+
 	if(row & 0x01)
 		P2OUT |= BIT0;
 	else // not 0x01
@@ -74,6 +76,14 @@ inline void select_ir(uint8_t row)
 		P3OUT |= BIT1;
 	else
 		P3OUT &= ~BIT1;
+//IR_INPUT;
+/*
+uint32_t d;
+
+		for(d=0;d<0xFF;d++) // shitty delay
+			__asm__("nop\nnop\nnop\nnop\nnop\nnop\nnop");
+*/
+
 } // select_ir()
 
 
@@ -81,7 +91,7 @@ inline void select_ir(uint8_t row)
 void eval_magnitude(uint8_t port, uint16_t sense_table[], uint16_t index)
 {
 	uint8_t offset = 0;
-	uint8_t bit;
+	uint16_t bit;
 
 	for(bit=0x0001; bit<0x0100; bit<<=1)	
 	{
@@ -97,8 +107,6 @@ void eval_magnitude(uint8_t port, uint16_t sense_table[], uint16_t index)
 void poll_A(uint8_t row, uint8_t slave_addr, uint16_t samples,
 	uint16_t sense_table[])
 {
-	// TODO doesn't work yet
-
 	uint16_t i;
 	uint8_t IO_A, IO_B;
 	uint16_t index = row * 8; // sensor number: 8 sensors per row
@@ -106,13 +114,13 @@ void poll_A(uint8_t row, uint8_t slave_addr, uint16_t samples,
 	uint16_t bit = 0;
 	uint8_t offset = 0;
 
-	// zero table
-	for(offset=0; offset<8; offset++)
-		sense_table[index + offset] = 0;
 
 	// turn on IR
 	select_ir(row);	
-	IR_ON;
+
+	// zero table
+	for(offset=0; offset<8; offset++)
+		sense_table[index + offset] = 0;
 
 	// Begin I2C communication
 	ex_begin_inputs(slave_addr);
@@ -146,8 +154,63 @@ void poll_A(uint8_t row, uint8_t slave_addr, uint16_t samples,
 	while(!(UCB1IFG & UCRXIFG));
 	IO_B = UCB1RXBUF; // PORT 1 INPUT
 
-	IR_OFF;
 } // poll_A()
+
+
+
+void poll_B(uint8_t row, uint8_t slave_addr, uint16_t samples,
+	uint16_t sense_table[])
+{
+	uint16_t i;
+	uint8_t IO_A, IO_B;
+	uint16_t index = row * 8; // sensor number: 8 sensors per row
+
+	uint16_t bit = 0;
+	uint8_t offset = 0;
+	uint32_t d;
+
+
+	// turn on IR
+	select_ir(row);	
+
+
+	// zero table
+	for(offset=0; offset<8; offset++)
+		sense_table[index + offset] = 0;
+
+	// Begin I2C communication
+	ex_begin_inputs(slave_addr);
+
+	// Request Data
+	//while(UCB1CTL1 & UCTXSTP);
+	UCB1CTL1 &= ~UCTR;
+	UCB1CTL1 |= UCTXSTT; // Transmit and Start
+	while(UCB1CTL1 & UCTXSTT);
+
+	// Collect data
+	for(i=0; i<samples-1; i++)
+	{
+		while(!(UCB1IFG & UCRXIFG));
+		IO_A = UCB1RXBUF; // PORT 0 INPUT
+
+		while(!(UCB1IFG & UCRXIFG));
+		IO_B = UCB1RXBUF; // PORT 1 INPUT
+
+		eval_magnitude(IO_B, sense_table, index);
+	} // for 0 to samples - 1
+
+	// last sample
+	while(!(UCB1IFG & UCRXIFG)); // if the sensor senses something (active low)
+	IO_A = UCB1RXBUF; // PORT 0 INPUT
+	
+	UCB1CTL1 |= UCTXSTP; // Stop
+	while(UCB1CTL1 & UCTXSTP);
+	while(!(UCB1IFG & UCRXIFG));
+	IO_B = UCB1RXBUF; // PORT 1 INPUT
+
+	eval_magnitude(IO_B, sense_table, index);
+
+} // poll_B()
 
 
 
@@ -161,13 +224,37 @@ void gather(uint16_t sense_table[])
 
 	for(chip=0; chip<8; chip++)
 	{ 
-		poll_A(row, slave_addr, NUM_SAMPLES, sense_table);
-		row++;
-		//poll_B();
-		row++;
+		
+		if(
+			//(slave_addr == (SLAVE_ADDR_MASK | 0x04)) ||
+			//(slave_addr == (SLAVE_ADDR_MASK | 0x05)) ||
+			(slave_addr == (SLAVE_ADDR_MASK | 0x00)) ||
+			(slave_addr == (SLAVE_ADDR_MASK | 0x01)) ||
+			(slave_addr == (SLAVE_ADDR_MASK | 0x02)) ||
+			(slave_addr == (SLAVE_ADDR_MASK | 0x03)) ||
+			(slave_addr == (SLAVE_ADDR_MASK | 0x04)) ||
+			(slave_addr == (SLAVE_ADDR_MASK | 0x05))
 
-		slave_addr++;
+			) // for testing single panel
+		{
+			poll_A(row, slave_addr, NUM_SAMPLES, sense_table);
+			row++;
+
+			poll_B(row, slave_addr, NUM_SAMPLES, sense_table);
+			row++;
+
+			slave_addr++;
+		}
+		else
+		{
+			row = row +2;
+			slave_addr++;
+		}
+
 	} // for 2 chips on a side
+	
+
+	//IR_OUTPUT;
 } // gather()
 
 
@@ -183,8 +270,12 @@ void process(uint8_t led_table[], uint16_t sense_table[])
 
 	for(i=0;i<NUM_SENSE;i++)
 	{
+		b = (sense_table[i] & 0x03)<<4;
+		g = (sense_table[i] & 0x0C)<<2;
+		r = (sense_table[i] & 0x30);
 		index = i*12; // every three LEDs
-		brightness = 0xE0 | (sense_table[i] & 0x1F);
+		//brightness = 0xE0 | ((sense_table[i]) & 0x1F);
+		brightness = 0xFF;
 
 		led_table[index] = brightness;
 		led_table[index+1] = b;
