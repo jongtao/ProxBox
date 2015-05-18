@@ -226,8 +226,6 @@ void gather(uint16_t sense_table[])
 	{ 
 		
 		if(
-			//(slave_addr == (SLAVE_ADDR_MASK | 0x04)) ||
-			//(slave_addr == (SLAVE_ADDR_MASK | 0x05)) ||
 			(slave_addr == (SLAVE_ADDR_MASK | 0x00)) ||
 			(slave_addr == (SLAVE_ADDR_MASK | 0x01)) ||
 			(slave_addr == (SLAVE_ADDR_MASK | 0x02)) ||

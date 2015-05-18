@@ -140,9 +140,10 @@ void config_gpio()
 	P3OUT &= ~BIT1;
 	P3DIR |= BIT1;
 
+/*
 	P6OUT &= ~BIT5;
 	P6DIR |= BIT5;
-
+*/
 	// Blinky
 	P1OUT = 0;
 	P1DIR |= 0x01;
